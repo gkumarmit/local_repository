@@ -1,4 +1,6 @@
 ---
+lucky-word: Irish New Value 12fff
+---
 eureka:
   client:
     serviceUrl:
