@@ -1,1 +1,120 @@
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class CustomLogger extends Logger {
+
+    private Logger logger;
+
+    protected CustomLogger(String name) {
+        super(name, LoggerFactory.getLogger(name).getClass());
+        logger = LoggerFactory.getLogger(name);
+    }
+
+    @Override
+    public void info(String msg) {
+	// Get access to TraceId and append Here
+        String modifiedMsg = "TraceId,AgentId,ThreadId: " + msg;
+        logger.info(modifiedMsg);
+    }
+
+    // Override other logging methods if needed
+
+    // Create factory method to get an instance of CustomLogger
+    public static CustomLogger getLogger(String name) {
+        return new CustomLogger(name);
+    }
+}
+-------------------------------------------------------------------------------
+import org.slf4j.ILoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class CustomLoggerConfiguration {
+
+    @Bean
+    public ILoggerFactory loggerFactory() {
+        return new CustomLoggerFactory();
+    }
+
+    private static class CustomLoggerFactory implements ILoggerFactory {
+        @Override
+        public Logger getLogger(String name) {
+            return CustomLogger.getLogger(name);
+        }
+    }
+}
+
+--------------------------------------------------------------------------
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
+
+@Component
+@Aspect
+public class EventIdAspect {
+    private Logger logger = LoggerFactory.getLogger(EventIdAspect.class);
+    private ThreadLocal<RehTrace> eventIdThreadLocal = new ThreadLocal<>();
+
+    @Before("execution(* com.example.yourpackage..*(..))")
+    public void assignEventId(JoinPoint joinPoint) {
+        String eventId = UUID.randomUUID().toString();
+        String className = joinPoint.getTarget().getClass().getSimpleName();
+        String methodName = joinPoint.getSignature().getName();
+		
+		// Populate RehTrace
+		RehTrace rehTrace=new RehTrace();
+		rehTrace.setEventId(eventId);
+		
+        eventIdThreadLocal.set(rehTrace);
+        logger.info("New event ID {} generated for {}.{}", eventId, className, methodName);
+    }
+
+    public RehTrace getEventId() {
+        return eventIdThreadLocal.get();
+    }
+}
+--------------------------------------------------------------------
+public class RehTrace{
+	private String eventId;
+	private String agentId;
+	private String threadId;
+
+}
+
+----------------------------------------------------------
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ValueConsumer {
+    private EventIdAspect EventIdAspect;
+
+    @Autowired
+    public ValueConsumer(EventIdAspect eventIdAspect) {
+        this.eventIdAspect = eventIdAspect;
+    }
+
+    public void processValue() {
+        RehTrace value = eventIdAspect.getValue();
+        //Use this RehTrace value in logging.
+    }
+
+    
+}
+
+
+
+
+
+
+
+
 
