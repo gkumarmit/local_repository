@@ -110,6 +110,28 @@ public class ValueConsumer {
     
 }
 
+-------------------------------------------------------
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ValueConsumer {
+    private ApplicationContext applicationContext;
+
+    @Autowired
+    public void setApplicationContext(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
+
+    public void processValue() {
+        EventIdAspect eventIdAspect = applicationContext.getBean(EventIdAspect.class);
+         RehTrace value = eventIdAspect.getValue();
+        //Use this RehTrace value in logging.
+    }
+}
+
 
 
 
