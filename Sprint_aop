@@ -132,6 +132,74 @@ public class ValueConsumer {
     }
 }
 
+---------------------------------------------
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CustomLogger {
+    String value() default "";
+}
+
+--------------------------------------------------------------
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.stereotype.Component;
+
+import java.lang.reflect.Field;
+
+@Component
+public class CustomLoggerBeanPostProcessor implements BeanPostProcessor {
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        // Get all the fields of the bean
+        Field[] fields = bean.getClass().getDeclaredFields();
+
+        // Iterate through the fields
+        for (Field field : fields) {
+            // Check if the field is annotated with @CustomLogger
+            if (field.isAnnotationPresent(CustomLogger.class)) {
+                // Set the custom logger to the field
+                field.setAccessible(true);
+                try {
+                    Logger logger = LoggerFactory.getLogger(bean.getClass());
+                    field.set(bean, logger);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return bean;
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        return bean;
+    }
+}
+
+------------------------------------
+import org.slf4j.Logger;
+import org.springframework.stereotype.Component;
+
+@Component
+public class SampleClass {
+
+    @CustomLogger
+    private Logger logger;
+
+    public void doSomething() {
+        logger.info("Doing something...");
+    }
+}
 
 
 
