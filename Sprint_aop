@@ -208,88 +208,87 @@ grep -Pzo '(?s)\[2023-01-01 08:00:00\].*?\[2023-01-01 12:00:00].*?error' example
 _-----_--------------
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class BatchInsertLoadTest {
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/database?rewriteBatchedStatements=true";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/database";
     private static final String USERNAME = "username";
     private static final String PASSWORD = "password";
     private static final int NUM_RECORDS = 60000;
-    private static final int NUM_THREADS = 5;
-    
+    private static final int NUM_THREADS = 10;
+    private static final int BATCH_SIZE = 5000;
+
     public static void main(String[] args) {
         // Create a latch to wait for all threads to finish
         CountDownLatch latch = new CountDownLatch(NUM_THREADS);
-        
-        // Calculate the number of records per thread
-        int recordsPerThread = NUM_RECORDS / NUM_THREADS;
-        
+
+        // Create a thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+
         long startTime = System.currentTimeMillis();
-        
+
         for (int i = 0; i < NUM_THREADS; i++) {
-            int startIndex = i * recordsPerThread + 1;
-            int endIndex = (i + 1) * recordsPerThread;
-            
-            // Create a new thread and start it
-            new BatchInsertThread(startIndex, endIndex, latch).start();
+            int startIndex = (i * NUM_RECORDS / NUM_THREADS) + 1;
+            int endIndex = ((i + 1) * NUM_RECORDS / NUM_THREADS);
+
+            // Execute the task in a thread
+            executor.execute(new BatchInsertTask(startIndex, endIndex, latch));
         }
-        
+
         try {
             // Wait for all threads to finish
             latch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
+
+        // Shutdown the thread pool
+        executor.shutdown();
+
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
-        
+
         System.out.println("Load test complete in " + duration + " milliseconds.");
     }
-    
-    private static class BatchInsertThread extends Thread {
+
+    private static class BatchInsertTask implements Runnable {
         private final int startIndex;
         private final int endIndex;
         private final CountDownLatch latch;
-        
-        public BatchInsertThread(int startIndex, int endIndex, CountDownLatch latch) {
+
+        public BatchInsertTask(int startIndex, int endIndex, CountDownLatch latch) {
             this.startIndex = startIndex;
             this.endIndex = endIndex;
             this.latch = latch;
         }
-        
+
         @Override
         public void run() {
-            try (Connection connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD)) {
+            try (Connection connection = ConnectionPool.getConnection()) {
                 String sql = "INSERT INTO your_table (column1, column2) VALUES (?, ?)";
                 PreparedStatement statement = connection.prepareStatement(sql);
-                
+
                 // Disable auto-commit to enable batch processing
                 connection.setAutoCommit(false);
-                
-                int batchSize = 5000; // Set an optimal batch size
-                
+
                 for (int i = startIndex; i <= endIndex; i++) {
                     // Set values for each record
                     statement.setString(1, "value1");
                     statement.setString(2, "value2");
-                    
+
                     // Add the statement to the batch
                     statement.addBatch();
-                    
+
                     // Execute the batch after reaching the batch size
-                    if (i % batchSize == 0) {
+                    if (i % BATCH_SIZE == 0) {
                         statement.executeBatch();
                     }
-                }
-                
-                // Execute the remaining statements in the batch
-                statement.executeBatch();
-                
-                // Commit the
+               
 
 
-
+	
+	
