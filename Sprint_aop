@@ -289,6 +289,40 @@ public class BatchInsertLoadTest {
                     }
                
 
+----------------------------
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class ConnectionPoolExample {
+
+    private ComboPooledDataSource dataSource;
+    private JdbcTemplate jdbcTemplate;
+
+    public ConnectionPoolExample() {
+        // Initialize the ComboPooledDataSource
+        dataSource = new ComboPooledDataSource();
+        
+        // Set the required properties for the data source (e.g., JDBC URL, username, password)
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/mydatabase");
+        dataSource.setUser("username");
+        dataSource.setPassword("password");
+        
+        // Create the JdbcTemplate using the ComboPooledDataSource
+        jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+    
+    public int getActiveConnectionCount() {
+        // Retrieve the active connection count from the ComboPooledDataSource
+        return dataSource.getNumBusyConnectionsAllUsers();
+    }
+
+    public static void main(String[] args) {
+        ConnectionPoolExample example = new ConnectionPoolExample();
+        
+        int activeConnections = example.getActiveConnectionCount();
+        System.out.println("Active Connections: " + activeConnections);
+    }
+}
 
 	
 	
