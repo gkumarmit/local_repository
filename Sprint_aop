@@ -324,5 +324,69 @@ public class ConnectionPoolExample {
     }
 }
 
-	
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+
+public class OptimizedTempTableUpdate {
+    public static void main(String[] args) {
+        String jdbcUrl = "jdbc:sqlserver://yourServer:1433;databaseName=yourDatabase";
+        String username = "yourUsername";
+        String password = "yourPassword";
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+
+            // Create a temporary table
+            try (Statement createTempTableStatement = connection.createStatement()) {
+                createTempTableStatement.execute("CREATE TABLE #TempTable (ID INT, Col1 INT, Col2 INT, Col3 INT, Col4 INT, Col5 INT);");
+            }
+
+            // Insert data into the temporary table using batch processing
+            String insertDataQuery = "INSERT INTO #TempTable (ID, Col1, Col2, Col3, Col4, Col5) VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insertDataStatement = connection.prepareStatement(insertDataQuery)) {
+                for (int i = 1; i <= 25000; i++) {
+                    insertDataStatement.setInt(1, i);
+                    insertDataStatement.setInt(2, /* value for Col1 */);
+                    insertDataStatement.setInt(3, /* value for Col2 */);
+                    insertDataStatement.setInt(4, /* value for Col3 */);
+                    insertDataStatement.setInt(5, /* value for Col4 */);
+                    insertDataStatement.setInt(6, /* value for Col5 */);
+                    
+                    insertDataStatement.addBatch();
+
+                    // Execute batch in chunks to optimize performance
+                    if (i % 1000 == 0) {
+                        insertDataStatement.executeBatch();
+                    }
+                }
+
+                // Execute any remaining batch
+                insertDataStatement.executeBatch();
+            }
+
+            // Update data using a JOIN with the temporary table
+            try (Statement updateStatement = connection.createStatement()) {
+                String updateQuery = "UPDATE YourActualTable " +
+                                     "SET YourActualTable.Col1 = #TempTable.Col1, " +
+                                     "    YourActualTable.Col2 = #TempTable.Col2, " +
+                                     "    YourActualTable.Col3 = #TempTable.Col3, " +
+                                     "    YourActualTable.Col4 = #TempTable.Col4, " +
+                                     "    YourActualTable.Col5 = #TempTable.Col5 " +
+                                     "FROM YourActualTable " +
+                                     "JOIN #TempTable ON YourActualTable.ID = #TempTable.ID;";
+                updateStatement.execute(updateQuery);
+            }()
+
+            // Drop the temporary table
+            try (Statement dropTempTableStatement = connection.createStatement()) {
+                dropTempTableStatement.execute("DROP TABLE #TempTable;");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+try	
 	
